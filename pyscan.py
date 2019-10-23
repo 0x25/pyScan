@@ -26,7 +26,7 @@ def scan(procId,jobs,data):
     try:
         while True:
             jobData = jobs.get_nowait()
-            ip = jobData['ip']
+            ip = jobData['ip'].strip()
 
             print "[%s] start scan : %s"%(procId,ip)
 
