@@ -11,9 +11,9 @@ from random import shuffle
 import signal
 
 # configuration
-nmapPath="/usr/bin/nmap"
-xlstprocPath="/usr/bin/xsltproc"
-path="scan"
+nmapPath = "/usr/bin/nmap"
+xlstprocPath = "/usr/bin/xsltproc"
+path = "scan"
 
 def keyboardInterruptHandler(signal, frame):
     print("KeyboardInterrupt (ID: {}) has been caught. Cleaning up...".format(signal))
@@ -22,7 +22,7 @@ def keyboardInterruptHandler(signal, frame):
 signal.signal(signal.SIGINT, keyboardInterruptHandler)
 
 # child process
-def scan(procId,jobs,data):
+def scan(procId,jobs,data,folder):
     try:
         while True:
             jobData = jobs.get_nowait()
@@ -30,8 +30,8 @@ def scan(procId,jobs,data):
 
             print "[%s] start scan : %s"%(procId,ip)
 
-            fname =  "%s/%s.log"%(path,ip)
-            cmd = "%s %s -v -oA %s/%s %s"%(nmapPath,data,path,ip,ip)
+            fname =  "%s/%s/%s.log"%(path,folder,ip)
+            cmd = "%s %s -v -oA %s/%s/%s %s"%(nmapPath,data,path,folder,ip,ip)
 
             args = shlex.split(cmd)
             p = subprocess.Popen(args,stdout=open(fname, 'w'))
@@ -41,7 +41,7 @@ def scan(procId,jobs,data):
                 time.sleep(5)
 
             if xsltprocExist is True:
-                cmd = "%s scan/%s.xml -o %s/%s.html"%(xlstprocPath,ip,path,ip)
+                cmd = "%s %s/%s/%s.xml -o %s/%s/%s.html"%(xlstprocPath,path,folder,ip,path,folder,ip)
                 args = shlex.split(cmd)
                 p = subprocess.Popen(args,stdout=open(fname, 'w'))
 
@@ -84,7 +84,7 @@ def main():
     parser.add_argument('-t','--thread', type=int, default=defaultThread, help='Number of concurent thread')
     parser.add_argument('-f','--file',required=True, help='File with one IP or IP/CIDR line by line')
     parser.add_argument('-c','--cmd',default=defaultNmapCmd, help='Set nmap parameter (don\'t add -v or xml,nmap output). Use quote !')
-    parser.add_argument('-m','--mode',default=defaultMode, help='faste F or all A default is Normal(1000)')
+    parser.add_argument('-m','--mode',default=defaultMode, help='F for fast or A for all default is Normal(1000)')
     parser.add_argument('-s','--shuffle', action='store_true', help='shuffle IP values')
     args = parser.parse_args()
 
@@ -95,6 +95,12 @@ def main():
 
     if args.mode in modes:
         cmd = "%s %s"%(modes[args.mode],cmd)
+        if args.mode == 'F':
+            subPath =  'fast'
+        elif args.mode == 'A':
+            subPath = 'full'
+    else:
+        subPath = 'normal'
 
     # start code
     jobs = Queue()
@@ -103,7 +109,7 @@ def main():
     # process
     for procId in range(nbProcess):
         print "start process [%s/%s]"%(procId,nbProcess)
-        pool.append(Process(target=scan, args=(procId,jobs,cmd)))
+        pool.append(Process(target=scan, args=(procId,jobs,cmd,subPath)))
 
     # read file
     with open(filename) as f:
